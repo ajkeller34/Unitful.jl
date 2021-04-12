@@ -1016,6 +1016,7 @@ end
     @test ceil(u"m", (125//1)u"cm", sigdigits=2) === 1.3u"m"
     @test trunc(u"m", -125u"cm", sigdigits=2) === -1.2u"m"
     @test trunc(u"m", (125//1)u"cm", sigdigits=2) === 1.2u"m"
+    @test round(3.7001u"m", sigdigits=3) === 3.7u"m"
 end
 
 @testset "Sgn, abs, &c." begin

@@ -329,8 +329,8 @@ _dimerr(f) = error("$f can only be well-defined for dimensionless ",
 isinteger(x::AbstractQuantity) = _dimerr(isinteger)
 isinteger(x::DimensionlessQuantity) = isinteger(uconvert(NoUnits, x))
 
-_rounderr() = error("specify the type of the quantity to convert to ",
-    "when rounding quantities. Example: round(typeof(1u\"m\"), 137u\"cm\").")
+_rounderr() = error("when rounding quantities, you must either specify the quantity to ",
+    "convert to, or provide keyword sigdigits. Example: round(typeof(1u\"m\"), 137u\"cm\").")
 
 # convenience methods
 round(u::Units, q::AbstractQuantity, r::RoundingMode=RoundNearest; kwargs...) =
@@ -340,8 +340,12 @@ round(::Type{T}, u::Units, q::AbstractQuantity, r::RoundingMode=RoundNearest;
     round(Quantity{T, dimension(u), typeof(u)}, q, r; kwargs...)
 
 # workhorse methods
-round(x::AbstractQuantity, r::RoundingMode=RoundNearest; kwargs...) =
+round(x::AbstractQuantity, r::RoundingMode; kwargs...) =
     _rounderr()
+function round(x::AbstractQuantity; sigdigits::Union{Nothing,Integer}=nothing, kwargs...)
+    sigdigits === nothing && _rounderr()
+    round(unit(x), x; sigdigits=sigdigits, kwargs...)
+end
 round(x::DimensionlessQuantity; kwargs...) = round(uconvert(NoUnits, x); kwargs...)
 round(x::DimensionlessQuantity, r::RoundingMode; kwargs...) =
     round(uconvert(NoUnits, x), r; kwargs...)
@@ -443,7 +447,7 @@ for f in (:float, :BigFloat, :Float64, :Float32, :Float16)
     (Base.$f)(x::AbstractQuantity) = Quantity($f(x.val), unit(x))
     end
 end
-   
+
 """
     Integer(x::AbstractQuantity)
 Convert the numeric backing type of `x` to an integer representation.
