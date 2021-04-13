@@ -64,6 +64,7 @@ const AbsoluteScaleTemperature = Quantity{T, 𝚯, <:ScalarUnits} where T
 # Angles and solid angles
 @unit sr      "sr"      Steradian   1                       true
 @unit rad     "rad"     Radian      1                       true
+@unit cyc     "cyc"     Cycle       2π*rad                  true
 @unit °       "°"       Degree      pi/180                  false
 # For numerical accuracy, specific to the degree
 import Base: sind, cosd, tand, secd, cscd, cotd
@@ -108,6 +109,7 @@ end
 @unit yr     "yr"       Year                  31557600s     true
 @unit rps    "rps"      RevolutionsPerSecond  2π*rad/s      false
 @unit rpm    "rpm"      RevolutionsPerMinute  2π*rad/minute false
+@unit cps    "cps"      CyclesPerSecond       1cyc/s        true
 
 # Area
 # The hectare is used more frequently than any other power-of-ten of an are.
