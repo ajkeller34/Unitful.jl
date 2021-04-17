@@ -21,8 +21,8 @@ import Base: steprange_last, unsigned
 end
 
 import Dates
-import LinearAlgebra: Diagonal, Bidiagonal, Tridiagonal, SymTridiagonal
-import LinearAlgebra: istril, istriu, norm
+import LinearAlgebra: Diagonal, Bidiagonal, Tridiagonal, SymTridiagonal, Adjoint, Transpose, AdjOrTransAbsMat
+import LinearAlgebra: istril, istriu, norm, mul!, dot, /, \, inv, pinv
 import Random
 
 import ConstructionBase: constructorof
@@ -69,5 +69,6 @@ include("logarithm.jl")
 include("complex.jl")
 include("pkgdefaults.jl")
 include("dates.jl")
+include("linearalgebra.jl")
 
 end

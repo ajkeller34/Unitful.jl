@@ -84,6 +84,66 @@ const colon = Base.:(:)
     @test ConstructionBase.constructorof(typeof(1.0m))(2) === 2m
 end
 
+@testset "LinearAlgebra functions" begin
+    CNT = Ref(0)
+    Unitful._linearalgebra_count() = (CNT[] += 1; nothing)
+    @testset "> Matrix multiplication: *" begin
+        M = rand(3,3) .* u"m"
+        M_ = view(M,:,1:3)
+        v = rand(3) .* u"V"
+        v_ = view(v, 1:3)
+
+        CNT[] = 0
+
+        @test unit(first(M * M)) == u"m*m"
+        @test M * M == M_ * M == M * M_ == M_ * M_
+
+        @test unit(first(M * v)) == u"m*V"
+        @test M * v == M_ * v == M * v_ == M_ * v_
+
+        VERSION >= v"1.3" && @test CNT[] == 10
+
+        @test unit(first(v' * M)) == u"m*V"
+        @test v' * M == v_' * M == v_' * M == v_' * M_
+
+        VERSION >= v"1.3" && @test CNT[] == 15
+
+        @test unit(v' * v) == u"V*V"
+        @test v' * v == v_' * v == v_' * v == v_' * v_
+
+        VERSION >= v"1.3" && @test CNT[] == 20
+
+        # Mixed with & without units
+        N = rand(3,3)
+        w = rand(3)
+
+        CNT[] = 0
+        
+        @test unit(first(M * N)) == u"m"
+        @test unit(first(N * M)) == u"m"
+
+        @test unit(first(M * w)) == u"m"
+        @test unit(first(N * v)) == u"V"
+
+        @show CNT[] # not specialised yet
+
+    end
+    @testset "> Matrix multiplication: mul!" begin
+        A = rand(3,3) .* u"m"
+        B = rand(3,3) .* u"m"
+        C = fill(zero(eltype(A*B)), 3, 3)
+        CNT[] = 0
+
+        mul!(C, A, B)
+        if VERSION >= v"1.3" # the 5-arm mul! exists
+            mul!(C, A, B, true, true)
+            mul!(C, A, B, 3, 7) # not specialised yet
+
+            @show CNT[]
+        end
+    end
+end
+
 @testset "Types" begin
     @test Base.complex(Quantity{Float64,NoDims,NoUnits}) ==
         Quantity{Complex{Float64},NoDims,NoUnits}
@@ -1251,6 +1311,16 @@ end
             @test_deprecated ustrip([1,2])
             @test ustrip.([1,2]) == [1,2]
             @test typeof(ustrip([1u"m", 2u"m"])) <: Base.ReinterpretArray{Int,1}
+
+            # With target type
+            @test @inferred(ustrip(u"m", [1, 2]u"m")) == [1,2]
+            @test @inferred(ustrip(u"km", [1, 2]u"m")) == [1//1000, 2//1000]
+            @test typeof(ustrip(u"m", [1, 2]u"m")) <: Base.ReinterpretArray{Int,1}
+            @test typeof(ustrip(u"m/ms", [1, 2]*(u"km/s"))) <: Base.ReinterpretArray{Int,1}
+
+            # Structured matrices
+            @test typeof(ustrip(adjoint([1,2]u"m"))) <: Adjoint{Int}
+            @test typeof(ustrip(transpose([1 2; 3 4]u"m"))) <: Transpose{Int}
             @test typeof(ustrip(Diagonal([1,2]u"m"))) <: Diagonal{Int}
             @test typeof(ustrip(Bidiagonal([1,2,3]u"m", [1,2]u"m", :U))) <:
                 Bidiagonal{Int}
@@ -1258,6 +1328,9 @@ end
                 Tridiagonal{Int}
             @test typeof(ustrip(SymTridiagonal([1,2,3]u"m", [4,5]u"m"))) <:
                 SymTridiagonal{Int}
+
+            @test typeof(ustrip(u"m", adjoint([1,2]u"m"))) <: Adjoint{Int}
+            @test typeof(ustrip(u"m", Diagonal([1,2]u"m"))) <: Diagonal{Int}
         end
         @testset ">> Linear algebra" begin
             @test istril([1 1; 0 1]u"m") == false
