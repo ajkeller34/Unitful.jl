@@ -41,6 +41,22 @@ using Dates:
 
 const colon = Base.:(:)
 
+@testset "Ambiguities" begin
+    ambig = sort(detect_ambiguities(Unitful), by = a -> [string(a[1].name), string(a[2].module)])
+    if length(ambig) > 0
+        println(stdout, "detect_ambiguities(Unitful) found $(length(ambig)) issues:")
+        for i in 1:length(ambig)
+            println(stdout, "[",i, "]:")
+            println(stdout, "  ", ambig[i][1])
+            println(stdout, "  ", ambig[i][2])
+        end
+        println(stdout)
+    end
+    @test length(ambig) <= 27
+    unbound = detect_unbound_args(Unitful)
+    @test length(unbound) <= 1
+end
+
 @testset "Construction" begin
     @test isa(NoUnits, FreeUnits)
     @test typeof(𝐋) === Unitful.Dimensions{(Unitful.Dimension{:Length}(1),)}

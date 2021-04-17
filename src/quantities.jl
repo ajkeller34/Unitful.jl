@@ -191,6 +191,7 @@ for (_x,_y) in [(:fma, :_fma), (:muladd, :_muladd)]
     # Catch some signatures pre-promotion
     @eval @inline ($_x)(x::Number, y::AbstractQuantity, z::AbstractQuantity) = ($_y)(x,y,z)
     @eval @inline ($_x)(x::AbstractQuantity, y::Number, z::AbstractQuantity) = ($_y)(x,y,z)
+    @eval @inline ($_x)(x::AbstractQuantity, y::AbstractQuantity, z::AbstractQuantity) = ($_y)(x,y,z)
 
     # Post-promotion
     @eval @inline ($_x)(x::AbstractQuantity{A}, y::AbstractQuantity{B}, z::AbstractQuantity{C}) where {
