@@ -72,6 +72,10 @@ for (_x,_y) in ((:sin,:sind), (:cos,:cosd), (:tan,:tand),
     @eval ($_x)(x::Quantity{T, NoDims, typeof(°)}) where {T} = ($_y)(ustrip(x))
     @eval ($_y)(x::Quantity{T, NoDims, typeof(°)}) where {T} = ($_y)(ustrip(x))
 end
+@static if VERSION ≥ v"1.3.0-rc1"
+    import Base: sincosd
+    sincosd(x::Quantity{T, NoDims, typeof(°)}) where {T} = sincosd(ustrip(x))
+end
 
 # SI and related units
 @unit Hz              "Hz"   Hertz           1/s                true

@@ -694,6 +694,8 @@ end
         @test @inferred(atan(m*sqrt(3),1e+3mm)) ≈ 60°
         @test_throws DimensionError atan(m*sqrt(3),1e+3s)
         @test @inferred(angle((3im)*V)) ≈ 90°
+
+        @test @inferred(sincosd(5u"°")) == (sind(5u"°"), cosd(5u"°")) == (0.08715574274765818, 0.9961946980917455)
     end
     @testset "> Exponentials and logarithms" begin
         for f in (exp, exp10, exp2, expm1, log, log10, log1p, log2)
