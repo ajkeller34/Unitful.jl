@@ -73,6 +73,11 @@ for (_x,_y) in ((:sin,:sind), (:cos,:cosd), (:tan,:tand),
     @eval ($_y)(x::Quantity{T, NoDims, typeof(°)}) where {T} = ($_y)(ustrip(x))
 end
 
+# conversion between degrees and radians
+import Base: deg2rad, rad2deg
+deg2rad(d::Quantity{T, NoDims, typeof(°)}) where {T} = deg2rad(ustrip(d))u"rad"
+rad2deg(r::Quantity{T, NoDims, typeof(rad)}) where {T} = rad2deg(ustrip(r))u"°"
+
 # SI and related units
 @unit Hz              "Hz"   Hertz           1/s                true
 @unit N               "N"    Newton          1kg*m/s^2          true

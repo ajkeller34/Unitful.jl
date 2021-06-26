@@ -193,6 +193,10 @@ end
             @test 1u"rps" == 2π/s
             @test 1u"rpm" == 360°/minute
             @test 1u"rpm" == 2π/minute
+
+            # Issue 458:
+            @test deg2rad(360°) ≈ 2π * rad
+            @test rad2deg(2π * rad) ≈ 360°
         end
     end
 end
