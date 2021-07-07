@@ -22,7 +22,7 @@ end
 
 import Dates
 import LinearAlgebra: Diagonal, Bidiagonal, Tridiagonal, SymTridiagonal
-import LinearAlgebra: istril, istriu, norm
+import LinearAlgebra: istril, istriu, norm, pinv
 import Random
 
 import ConstructionBase: constructorof
