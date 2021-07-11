@@ -82,13 +82,10 @@ julia> (@dB 10mW/1mW) + (@dB 10mW/2mW)
 20 mW
 ```
 
-Addition will be discussed more later.
-
-Note that logarithmic "units" can only multiply or be multiplied by pure numbers and linear
-units, not other logarithmic units or quantities. This is done to avoid issues with
-commutativity and associativity, e.g. `3*dB*m^-1 == (3dB)/m`, but `3*m^-1*dB == (3m^-1)*dB`
-does not make much sense. This is because `dB` acts more like a constructor than a proper
-unit.
+With a few exceptions, dimensionful logarithmic units, such as `dBm` behave just like the underlying
+linear unit for purposes of arithmetic (i.e. arithmetic operations commute with `linear`). However,
+note that they will still be displayed logarithmically. In contrast, arithmetic on dimensionless
+logarithmic units (i.e. gains/attenuations) such as `dB` behaves logarithmically. This will be explored in more detail below.
 
 The `@dB` and `@Np` macros will fail if either a dimensionless number or a ratio of
 dimensionless numbers is used. This is because the ratio could be of power quantities or of
@@ -134,11 +131,11 @@ logarithmic quantity is:
     Unitful.Gain
 ```
 
-One might expect that any gain / attenuation factor should be convertible to a pure number,
+One might expect that any gain / attenuation factor should be convertible to a scalar,
 that is, to `x == y/z` if you had `10*log10(x)` dB. However, it turns out that in dB, a ratio
 of powers is defined as `10*log10(y/z)`, but a ratio of voltages or other root-power
-quantities is defined as `20*log10(y/z)`. Clearly, converting back from decibels to a real
-number is ambiguous, and so we have not implemented automatic promotion to avoid incorrect
+quantities is defined as `20*log10(y/z)`. Clearly, converting back from decibels to a scalar
+is ambiguous, and so we have not implemented automatic promotion to avoid incorrect
 results. You can use [`Unitful.uconvertp`](@ref) to interpret a `Gain` as a ratio of power
 quantities (hence the `p` in `uconvertp`), or [`Unitful.uconvertrp`](@ref) to interpret as
 a ratio of root-power (field) quantities.
@@ -167,34 +164,55 @@ Finally, for completeness we note that both `Level` and `Gain` are subtypes of `
     Unitful.LogScaled
 ```
 
-## Multiplication rules
+## Addition and Multiplication rules
 
-Multiplying a dimensionless logarithmic quantity by a pure number acts as like it does for
-linear quantities:
+For dimensionaless logarithmic units, addition behaves as one might expect:
+
+```jldoctest
+julia> 10u"dB" + 10u"dB"
+20 dB
+```
+
+I.e. the gains add. However, as hinted at above, dimensionful logarithmic units,
+behave as their corresponding linear unit:
+
+```
+julia> 10u"dBm" + 10u"dBm"
+13.010299956639813 dBm
+
+julia> linear(10u"dBm") + linear(10u"dBm")
+20.0 mW
+
+julia> uconvert(u"dBm", ans)
+13.010299956639813 dBm
+```
+
+Note that this may seem strange from an arithmetic perspective, as written, but
+the arithmetic is entirely consistent. It can be helpful to think of the arithmetic
+as being performed on the linear units, with the logarithmic units simply being a
+display hint (although the quantity being stored is indeed the displayed logarithmic
+value).
+
+Multiplication by a scalar is consistent with the addition rules above:
 
 ```jldoctest
 julia> 3u"dB" * 2
 6 dB
 
+julia> 3u"dB" + 3u"dB"
+6 dB
+
 julia> 2 * 0u"dB"
 0 dB
-```
 
-Justification by example: consider the example of the exponential attenuation of a signal on
-a lossy transmission line. If the attenuation goes like $10^{-kx}$, then the (power)
-attenuation in dB is $-10kx$. We see that the attenuation in dB is linear in length. For an
-attenuation constant of 3dB/m, we better calculate 6dB for a length of 2m.
-
-Multiplying a dimensionful logarithmic quantity by a pure number acts differently than
-multiplying a gain/attenuation by a pure number. Since `0dBm == 1mW`, we better have that
-`0dBm * 2 == 2mW`, implying:
-
-```jldoctest
 julia> 0u"dBm" * 2
+3.010299956639812 dBm
+
+julia> 0u"dBm" + 0u"dBm"
 3.010299956639812 dBm
 ```
 
-Logarithmic quantities can only be multiplied by pure numbers, linear units, or quantities,
+Logarithmic quantities can only be multiplied by scalar, linear units, or quantities,
 but not logarithmic "units" or quantities.  When a logarithmic quantity is multiplied by a
 linear quantity, the logarithmic quantity is linearized and multiplication proceeds as
 usual:
@@ -228,13 +246,28 @@ julia> 0u"dB/Hz"
 [0 dB] Hz^-1
 ```
 
-Mathematical operations are forwarded to the logarithmic part, so that for example,
-`100*((0dBm)/s) == (20dBm)/s`. We allow linear units to commute with logarithmic quantities
-for convenience, though the association is understood (e.g. `s^-1*(3dBm) == (3dBm)/s`).
+Since dimensionful logarithmic units still behave as their corresponding linear unit,
+working with dimensionful units is entirely consistnet.
 
-The behavior of multiplication is summarized in the following table, with entries marked by
+The behavior of addition and multiplication are summarized in the following table, with entries marked by
 † indicate prohibited operations. This table is populated automatically whenever the docs
 are built.
+
+```@eval
+using Latexify, Unitful
+head = ["100", "20dB", "1Np", "10.0dBm", "10.0dBV", "1mW"]
+side = ["+"; "**" .* head .* "**"]
+quantities = uparse.(head)
+tab = fill("", length(head), length(head))
+for col = eachindex(head), row = 1:col
+    try
+        tab[row, col] = string(quantities[row] + quantities[col])
+    catch
+        tab[row, col] = "†"
+    end
+end
+mdtable(tab, latex=false, head=head, side=side)
+```
 
 ```@eval
 using Latexify, Unitful
@@ -276,87 +309,33 @@ julia> 1u"V" * 20u"dB"
 10.0 V
 ```
 
-## Addition rules
+## Mixed Arithmetic
 
-We can add logarithmic quantities without reference levels specified (`Gain`s):
+One final question to answer is how arithmetic behaves when it involves both dimensionless
+and dimensionful logarithmic units. The answer here is that in mixed arithmetic, both
+dimensionless and dimensionful units are treated logarithmically. This is done for
+convenience and can break commutativity and associativity, so should be probably avoided in generic
+code.
 
-```jldoctest
-julia> 20u"dB" + 20u"dB"
-40 dB
 ```
+julia> 10u"dBm" + 20u"dB"
+30.0 dBm
 
-The numbers out front of the `dB` just add: when we talk about gain or attenuation,
-we work in logarithmic units so that we can add rather than multiply gain factors. The same
-behavior holds when we add a `Gain` to a `Level` or vice versa:
+julia> (10u"dBm" + 10u"dBm") + 20u"dB"
+33.01029995663981 dBm
 
-```jldoctest
-julia> 20u"dBm" + 20u"dB"
-40.0 dBm
+julia> 10u"dBm" + (10u"dBm" + 20u"dB")
+30.043213737826427 dBm
+
+julia> 10u"dBm" * 20u"dB"
+ERROR: ArgumentError: Multiplying a level by a Gain is disallowed. Use addition, or `linear` depending on context.
+
+julia> linear(10u"dBm") * 20u"dB"
+1000.0 mW
+
+julia> linear(10u"dBm") + 20u"dB"
+ERROR: ArgumentError: Adding a gain to a linear quantity is disallowed. Use multiplication or convert to `Level` first
 ```
-
-In the case where you have differing logarithmic scales for the `Level` and the `Gain`,
-the logarithmic scale of the `Level` is used for the result:
-
-```jldoctest
-julia> 10u"dBm" - 1u"Np"
-1.3141103619349632 dBm
-```
-
-For logarithmic quantities with the same reference levels, the numbers out in front do not
-simply add:
-
-```jldoctest
-julia> 20u"dBm" + 20u"dBm"
-23.010299956639813 dBm
-
-julia> 2 * 20u"dBm"
-23.010299956639813 dBm
-```
-
-This is because `dBm` represents a power, ultimately. If we have some amount of power and
-we double it, we'd better get roughly `3 dB` more power. Note that the juxtaposition `20dBm`
-will ensure that 20 dBm is constructed before multiplication by 2 in the above example.
-If you were to type `2*20*dBm`, you'd get 40 dBm.
-
-If the reference levels differ but both levels represent a power, we fall back to linear
-quantities:
-
-```jldoctest
-julia> 20u"dBm" + @dB 1u"W"/u"W"
-1.1 kg m^2 s^-3
-```
-i.e. `1.1 W`.
-
-Rules for addition are summarized in the following table, with entries marked by †
-indicating prohibited operations. This table is populated automatically whenever the docs
-are built.
-
-```@eval
-using Latexify, Unitful
-head = ["100", "20dB", "1Np", "10.0dBm", "10.0dBV", "1mW"]
-side = ["+"; "**" .* head .* "**"]
-quantities = uparse.(head)
-tab = fill("", length(head), length(head))
-for col = eachindex(head), row = 1:col
-    try
-        tab[row, col] = string(quantities[row] + quantities[col])
-    catch
-        tab[row, col] = "†"
-    end
-end
-mdtable(tab, latex=false, head=head, side=side)
-```
-
-Notice that we disallow implicit conversions between dimensionless logarithmic quantities
-and real numbers. This is because the results can depend on promotion rules in addition to
-being ambiguous because of the root-power vs. power ratio issue. If `100 + 10dB` were
-evaluated as `20dB + 10dB == 30dB`, then we'd get `1000`, but if it were evaluated as
-`100+10`, we'd get `110`.
-
-Also, although it is possible in principle to add e.g. `20dB + 1Np`, notice that we have
-not implemented that because it is unclear whether the result should be in nepers or
-decibels, and it is also unclear how to handle that question more generally as other
-logarithmic scales are introduced.
 
 ## Conversion
 

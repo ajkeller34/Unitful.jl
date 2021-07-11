@@ -1529,58 +1529,61 @@ end
             @test 1Np + 1.5Np == 2.5Np
             @test_throws DimensionError (1dBm + 1dBV)
             @test_throws DimensionError (1dBm + 1V)
+            @test +(1dBm) == 1dBm
+            @test_throws ArgumentError -(1dBm)
         end
 
         @testset ">> Gain" begin
-            for op in (:+, :*)
-                @test @eval ($op)(20dB, 10dB)      === 30dB
-                @test @eval ($op)(20dB_rp, 10dB)   === 30dB_rp
-                @test @eval ($op)(20dB, 10dB_rp)   === 30dB_rp
-                @test @eval ($op)(20dB_p, 10dB)    === 30dB_p
-                @test @eval ($op)(20dB, 10dB_p)    === 30dB_p
-                @test @eval ($op)(20dB_rp, 10dB_p) === 30dB
-                @test @eval ($op)(20dB_p, 10dB_rp) === 30dB
-                @test_throws ErrorException @eval ($op)(1dB, 1Np) # no promotion
-                @test_throws ErrorException @eval ($op)(1dB_rp, 1Np)
-            end
-            for op in (:-, :/)
-                @test @eval ($op)(20dB, 10dB)      === 10dB
-                @test @eval ($op)(20dB_rp, 10dB)   === 10dB_rp
-                @test @eval ($op)(20dB, 10dB_rp)   === 10dB_rp
-                @test @eval ($op)(20dB_p, 10dB)    === 10dB_p
-                @test @eval ($op)(20dB, 10dB_p)    === 10dB_p
-                @test @eval ($op)(20dB_rp, 10dB_p) === 10dB
-                @test @eval ($op)(20dB_p, 10dB_rp) === 10dB
-                @test_throws ErrorException @eval ($op)(1dB, 1Np) # no promotion
-                @test_throws ErrorException @eval ($op)(1dB_rp, 1Np)
-            end
+            @test +(20dB, 10dB)      === 30dB
+            @test +(20dB_rp, 10dB)   === 30dB_rp
+            @test +(20dB, 10dB_rp)   === 30dB_rp
+            @test +(20dB_p, 10dB)    === 30dB_p
+            @test +(20dB, 10dB_p)    === 30dB_p
+            @test +(20dB_rp, 10dB_p) === 30dB
+            @test +(20dB_p, 10dB_rp) === 30dB
+            @test_throws ErrorException +(1dB, 1Np) # no promotion
+            @test_throws ErrorException +(1dB_rp, 1Np)
+
+            @test -(20dB, 10dB)      === 10dB
+            @test -(20dB_rp, 10dB)   === 10dB_rp
+            @test -(20dB, 10dB_rp)   === 10dB_rp
+            @test -(20dB_p, 10dB)    === 10dB_p
+            @test -(20dB, 10dB_p)    === 10dB_p
+            @test -(20dB_rp, 10dB_p) === 10dB
+            @test -(20dB_p, 10dB_rp) === 10dB
+            @test_throws ErrorException -(1dB, 1Np) # no promotion
+            @test_throws ErrorException -(1dB_rp, 1Np)
+
+            @test -(10dB) === (-10)dB
+            @test +(10dB) === (10)dB
         end
 
+        linear_if_level(x) = isa(x, Level) ? linear(x) : x
         @testset ">> Level, meet Gain" begin
-            for op in (:+, :*)
-                @test @eval ($op)(10dBm, 30dB)    == 40dBm
-                @test @eval ($op)(30dB, 10dBm)    == 40dBm
-                @test @eval ($op)(10dBm, 30dB_rp) == 40dBm
-                @test @eval ($op)(30dB_rp, 10dBm) == 40dBm
-                @test @eval ($op)(10dBm, 30dB_p)  == 40dBm
-                @test @eval ($op)(30dB_p, 10dBm)  == 40dBm
-                @test @eval ($op)(0Np, 3dBm)      == 3dBm
+            for op in (+, (a,b)->linear_if_level(a)*linear_if_level(b))
+                @test op(10dBm, 30dB)    == 40dBm
+                @test op(30dB, 10dBm)    == 40dBm
+                @test op(10dBm, 30dB_rp) == 40dBm
+                @test op(30dB_rp, 10dBm) == 40dBm
+                @test op(10dBm, 30dB_p)  == 40dBm
+                @test op(30dB_p, 10dBm)  == 40dBm
+                @test op(0Np, 3dBm)      == 3dBm
             end
-            for op in (:-, :/)
-                @test @eval ($op)(10dBm, 30dB)    == -20dBm
-                @test @eval ($op)(10dBm, 30dB_rp) == -20dBm
-                @test @eval ($op)(10dBm, 30dB_p) == -20dBm
-                @test @eval isapprox(($op)(10dBm, 1Np), 1.314dBm; atol=0.001dBm)
-                @test @eval isapprox(($op)(10dBm, 1Np_rp), 1.314dBm; atol=0.001dBm)
-                @test @eval isapprox(($op)(10dBm, 1Np_p), 1.314dBm; atol=0.001dBm)
+            for op in (-, (a,b)->linear_if_level(a)/linear_if_level(b))
+                @test op(10dBm, 30dB)    == -20dBm
+                @test op(10dBm, 30dB_rp) == -20dBm
+                @test op(10dBm, 30dB_p) == -20dBm
+                @test isapprox(op(10dBm, 1Np), 1.314dBm; atol=0.001dBm)
+                @test isapprox(op(10dBm, 1Np_rp), 1.314dBm; atol=0.001dBm)
+                @test isapprox(op(10dBm, 1Np_p), 1.314dBm; atol=0.001dBm)
 
                 # cannot subtract Levels from Gains
-                @test_throws ArgumentError @eval ($op)(10dB, 30dBm)
-                @test_throws ArgumentError @eval ($op)(10dB_rp, 30dBm)
-                @test_throws ArgumentError @eval ($op)(10dB_p, 30dBm)
-                @test_throws ArgumentError @eval ($op)(1Np, 10dBm)
-                @test_throws ArgumentError @eval ($op)(1Np_rp, 10dBm)
-                @test_throws ArgumentError @eval ($op)(1Np_p, 10dBm)
+                @test_throws ArgumentError op(10dB, 30dBm)
+                @test_throws ArgumentError op(10dB_rp, 30dBm)
+                @test_throws ArgumentError op(10dB_p, 30dBm)
+                @test_throws ArgumentError op(1Np, 10dBm)
+                @test_throws ArgumentError op(1Np_rp, 10dBm)
+                @test_throws ArgumentError op(1Np_p, 10dBm)
             end
         end
     end
@@ -1603,7 +1606,8 @@ end
             @test false*3dBm == -Inf*dBm
             @test 3dBm*true == 3dBm
             @test 3dBm*false == -Inf*dBm
-            @test (0dBV)*(1Np) ≈ 8.685889638dBV
+            @test_throws ArgumentError (0dBV)*(1Np)
+            @test linear(0dBV)*(1Np) ≈ 8.685889638dBV
             @test dBm/5 ≈ 0.2dBm
             @test linear((@dB 3W/W)//3) === 1W//1
             @test (@dB 3W/W)//(@dB 3W/W) === 1//1

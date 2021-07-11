@@ -183,6 +183,7 @@ Base.hash(x::Level, h::UInt) = hash(x.val, h)
 for op in (:+, :-)
     @eval Base. $op(x::Level{L,S}, y::Level{L,S}) where {L,S} = Level{L,S}(($op)(x.val, y.val))
     @eval Base. $op(x::Gain{L,S}, y::Gain{L,S}) where {L,S} = Gain{L,S}(($op)(x.val, y.val))
+    @eval Base. $op(x::Gain{L,S}) where {L,S} = Gain{L,S}(($op)(x.val))
     @eval function Base. $op(x::Gain{L,S1}, y::Gain{L,S2}) where {L,S1,S2}
         if S1 == :?
             return Gain{L,S2}(($op)(x.val, y.val))
@@ -196,7 +197,7 @@ for op in (:+, :-)
         Level{L,S}(fromlog(L, S, ($op)(ustrip(x), y.val)))
 end
 Base. +(x::Gain, y::Level) = +(y,x)
-Base. -(x::Gain, y::Level) = throw(ArgumentError("cannot subtract a level from a gain."))
+Base. +(x::Level) = x
 
 # Multiplication and division
 leveltype(x::Level{L,S}) where {L,S} = Level{L,S}
@@ -204,7 +205,6 @@ Base. *(x::Level, y::Number) = (leveltype(x))(x.val * y)
 Base. *(x::Level, y::Bool) = (leveltype(x))(x.val * y)    # for method ambiguity
 Base. *(x::Level, y::Quantity) = *(x.val, y)
 Base. *(x::Level, y::Level) = *(x.val, y.val)
-Base. *(x::Level, y::Gain) = *(promote(x,y)...)
 
 Base. *(x::Number, y::Level) = *(y,x)
 Base. *(x::Bool, y::Level) = *(y,x)                       # for method ambiguity
@@ -214,31 +214,11 @@ gaintype(::Gain{L,S}) where {L,S} = Gain{L,S}
 Base. *(x::Gain, y::Number) = (gaintype(x))(x.val * y)
 Base. *(x::Gain, y::Bool) = (gaintype(x))(x.val * y)      # for method ambiguity
 Base. *(x::Gain, y::Quantity) = *(y,x)
-Base. *(x::Gain, y::Level) = *(promote(x,y)...)
-Base. *(x::Gain, y::Gain) = *(promote(x,y)...)
 
 Base. *(x::Number, y::Gain) = *(y,x)
 Base. *(x::Bool, y::Gain) = *(y,x)                        # for method ambiguity
 Base. *(x::Quantity, y::Gain) =
     isrootpower(x) ? uconvertrp(NoUnits, y) * x : uconvertp(NoUnits, y) * x
-
-for (op1,op2) in ((:*, :+), (:/, :-))
-    @eval Base. $op1(x::Gain{L,S}, y::Gain{L,S}) where {L,S} = Gain{L,S}(($op2)(x.val, y.val))
-    @eval function Base. $op1(x::Gain{L,S1}, y::Gain{L,S2}) where {L,S1,S2}
-        if S1 == :?
-            return Gain{L,S2}(($op2)(x.val, y.val))
-        elseif S2 == :?
-            return Gain{L,S1}(($op2)(x.val, y.val))
-        else
-            return Gain{L,:?}(($op2)(x.val, y.val))
-        end
-    end
-    @eval Base. $op1(x::Level{L,S}, y::Gain{L}) where {L,S} =
-        Level{L,S}(fromlog(L, S, ($op2)(ustrip(x), y.val)))
-end
-
-Base. *(x::Gain{L}, y::Level{L,S}) where {L,S} = Level{L,S}(fromlog(L, S, ustrip(y)+x.val))
-Base. /(x::Gain, y::Level) = throw(ArgumentError("cannot divide a gain by a level."))
 
 Base. /(x::Level, y::Number) = (leveltype(x))(linear(x) / y)
 Base. //(x::Level, y::Number) = (leveltype(x))(linear(x) // y)
@@ -262,6 +242,18 @@ Base. //(x::Gain, y::Units) = x/y
 Base. //(x::Units, y::Gain) = x//linear(y)
 
 Base. isless(x::T, y::T) where {T<:LogScaled} = isless(x.val, y.val)
+
+# Explicitly disallowed operations
+Base. *(a::Level, b::Gain) =
+    throw(ArgumentError("Multiplying a level by a Gain is disallowed. Use addition, or `linear` depending on context."))
+Base. *(a::Gain, b::Gain) =
+    throw(ArgumentError("Multiplying gains is disallowed. Use addition to multiply the linear quantity."))
+Base. +(a::Quantity, b::Gain) =
+    throw(ArgumentError("Adding a gain to a linear quantity is disallowed. Use multiplication or convert to `Level` first"))
+Base. /(x::Gain, y::Quantity) = throw(ArgumentError("Dividing a gain by a quantity is disallowed."))
+Base. -(x::Gain, y::Level) = throw(ArgumentError("cannot subtract a level from a gain."))
+Base. -(x::Level) = throw(ArgumentError("Levels cannot represent negative power. Negation not provided."))
+
 
 function (Base.promote_rule(::Type{Level{L1,S1,T1}}, ::Type{Level{L2,S2,T2}})
         where {L1,L2,S1,S2,T1,T2})
